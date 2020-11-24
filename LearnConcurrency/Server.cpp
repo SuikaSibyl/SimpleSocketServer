@@ -1,12 +1,11 @@
 #include "Server.h"
 
-Network::Server::Server():clientList(MAX_CLIENT)
+Network::Server::Server():clientList(MAX_CLIENT), sListen(NULL)
 {
 	WORD wVersionRequested;
 	WSADATA wsaData;
-	int ret, nLeft;
+	int ret;
 	struct sockaddr_in saServer;//µÿ÷∑–≈œ¢
-	char* ptr;
 
 	// WinSock Initialize
 	wVersionRequested = MAKEWORD(2, 2);//WinSock DLL Version
@@ -87,7 +86,6 @@ void Network::Server::enterMainLoop()
 		}
 		printf("Client Connected!: %s:%d\n",
 			inet_ntoa(saClient.sin_addr), ntohs(saClient.sin_port));
-		ReceiveResult receiveResult;
 		int id = clientList.PushConn(sServer,std::string(inet_ntoa(saClient.sin_addr)), (int)saClient.sin_port);
 		auto f1 = std::bind(ReceiveResult(), sServer, id, this);
 		threadPool.submit<std::function<void()>>(f1);
@@ -108,7 +106,7 @@ void Network::ReceiveResult::operator()(std::shared_ptr<SOCKET> sServer, int id,
 	while (true)
 	{
 		Packet::Header header;
-		Packet::ReceiveByLength(sServer, (char*)&header, sizeof(header));
+		Packet::Packet::ReceiveByLength(sServer, (char*)&header, sizeof(header));
 		std::cout << header.packetType << header.length;
 
 		if (header.packetType == Packet::PacketType::REQ4LIST)
@@ -116,6 +114,7 @@ void Network::ReceiveResult::operator()(std::shared_ptr<SOCKET> sServer, int id,
 			Packet::Header header;
 			header.packetType = Packet::PacketType::LISTREQUEST;
 			std::string data = server->clientList.Encapsule();
+			std::cout << data;
 			header.length = data.length();
 			server->emitList.PushBack(id, header, data);
 		}
@@ -140,6 +139,21 @@ void Network::OutputLoop::operator()(Server* server)
 				{
 					printf("send() failed!\n");
 					continue;
+				}
+				else
+				{
+					std::cout << "send out to " << target;
+				}
+
+				ret = send(*socekt, emitType.contain.data() ,emitType.header.length, 0);
+				if (ret == SOCKET_ERROR)
+				{
+					printf("send() failed!\n");
+					continue;
+				}
+				else
+				{
+					std::cout << "send out to " << target;
 				}
 
 				iter->second.pop();

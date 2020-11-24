@@ -1,7 +1,9 @@
 #include "Server.h"
 
-void main()
+int main()
 {
 	Network::Server server;
 	server.enterMainLoop();
+
+	return 0;
 }

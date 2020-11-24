@@ -1,6 +1,5 @@
 #pragma once
 
-#include <iostream>
 #include <vector>
 #include <string>
 #include <map>
@@ -12,7 +11,7 @@ struct Connection
 	int port;
 	std::shared_ptr<SOCKET> socket;
 
-	Connection(){}
+	Connection() { id = -1; port = 0; }
 	Connection(int iid, std::string iadd, int iport, std::shared_ptr<SOCKET> iSocket):
 		id(iid),address(iadd),port(iport), socket(iSocket){}
 };
@@ -37,9 +36,9 @@ public:
 		std::string ret;
 		for (auto iter = clientList.begin(); iter != clientList.end(); iter++)
 		{
-			ret += iter->second.id + "/";
+			ret += std::to_string(iter->second.id) + "/";
 			ret += iter->second.address + "/";
-			ret += iter->second.port + "#";
+			ret += std::to_string(iter->second.port) + "#";
 		}
 		return ret;
 	}
@@ -48,7 +47,7 @@ public:
 	{
 		if (valid_ID.size() == 0)
 			return false;
-		int id = valid_ID.front();
+		int id = valid_ID.back();
 		valid_ID.pop_back();
 		clientList[id] = (Connection(id, add, port, socket));
 		return id;
