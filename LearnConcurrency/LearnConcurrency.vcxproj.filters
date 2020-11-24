@@ -29,5 +29,14 @@
     <ClInclude Include="Server.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Packet.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ClientList.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="EmitList.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

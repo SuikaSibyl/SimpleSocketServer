@@ -143,6 +143,9 @@
     <ClCompile Include="源.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ClientList.h" />
+    <ClInclude Include="EmitList.h" />
+    <ClInclude Include="Packet.h" />
     <ClInclude Include="Server.h" />
     <ClInclude Include="ThreadPool.h" />
   </ItemGroup>
