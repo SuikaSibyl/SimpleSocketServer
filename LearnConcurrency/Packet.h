@@ -2,11 +2,17 @@
 
 namespace Packet
 {
-	enum PacketType 
+	enum PacketType
 	{
 		NOTAPACKET,
+		//消息请求
+		REQ4NAME,
+		REQ4TIME,
 		REQ4LIST,
-		LISTREQUEST
+		SENDINFO,
+		DISCONNECT,
+		//普通消息
+		INFO
 	};
 
 	struct Header

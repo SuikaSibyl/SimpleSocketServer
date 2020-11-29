@@ -1,6 +1,8 @@
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
 #include "Server.h"
 
-Network::Server::Server():clientList(MAX_CLIENT), sListen(NULL)
+Network::Server::Server() :clientList(MAX_CLIENT), sListen(NULL)
 {
 	WORD wVersionRequested;
 	WSADATA wsaData;
@@ -33,12 +35,12 @@ Network::Server::Server():clientList(MAX_CLIENT), sListen(NULL)
 		printf("socket() failed!\n");
 		return;
 	}
-	
+
 	//构建本地地址信息：
 	saServer.sin_family = AF_INET;//地址家族
 	saServer.sin_port = htons(SERVER_PORT);//注意转化为网络字节序
 	saServer.sin_addr.S_un.S_addr = htonl(INADDR_ANY);//使用INADDR_ANY指示任意地址
-	
+
 	// Bind:
 	// -----
 	ret = bind(sListen, (struct sockaddr*)&saServer, sizeof(saServer));
@@ -86,7 +88,7 @@ void Network::Server::enterMainLoop()
 		}
 		printf("Client Connected!: %s:%d\n",
 			inet_ntoa(saClient.sin_addr), ntohs(saClient.sin_port));
-		int id = clientList.PushConn(sServer,std::string(inet_ntoa(saClient.sin_addr)), (int)saClient.sin_port);
+		int id = clientList.PushConn(sServer, std::string(inet_ntoa(saClient.sin_addr)), (int)saClient.sin_port);
 		auto f1 = std::bind(ReceiveResult(), sServer, id, this);
 		threadPool.submit<std::function<void()>>(f1);
 
@@ -107,16 +109,63 @@ void Network::ReceiveResult::operator()(std::shared_ptr<SOCKET> sServer, int id,
 	{
 		Packet::Header header;
 		Packet::Packet::ReceiveByLength(sServer, (char*)&header, sizeof(header));
-		std::cout << header.packetType << header.length;
+		std::cout << "Header Type: " << header.packetType << " | Header Length: " << header.length << std::endl;
 
-		if (header.packetType == Packet::PacketType::REQ4LIST)
+		char* con = new char[header.length];
+		Packet::Packet::ReceiveByLength(sServer, con, header.length);
+		std::string content = con;
+		std::cout << "receive content: " << content << std::endl;
+
+		if (header.packetType == Packet::PacketType::REQ4TIME)
+		{
+			time_t t;
+			time(&t); //获取time_t类型的当前时间
+			std::string sendline = ctime(&t);
+			std::cout << "send content: " << sendline << std::endl;
+
+			Packet::Header header;
+			header.packetType = Packet::PacketType::INFO;
+			header.length = sendline.length();
+			server->emitList.PushBack(id, header, sendline);
+		}
+		else if (header.packetType == Packet::PacketType::REQ4NAME)
+		{
+			char server_name[128];
+			std::string host_name;
+			gethostname(server_name, 128); //返回本地主机的标准主机名
+			host_name = server_name;
+			std::cout << "send content to" << id << ": " << host_name << std::endl;
+
+			Packet::Header header;
+			header.packetType = Packet::PacketType::INFO;
+			header.length = host_name.length();
+			server->emitList.PushBack(id, header, host_name);
+		}
+		else if (header.packetType == Packet::PacketType::REQ4LIST)
 		{
 			Packet::Header header;
-			header.packetType = Packet::PacketType::LISTREQUEST;
+			header.packetType = Packet::PacketType::INFO;
 			std::string data = server->clientList.Encapsule();
-			std::cout << data;
+			std::cout << "send content to" << id << ": " << data << std::endl;
 			header.length = data.length();
 			server->emitList.PushBack(id, header, data);
+		}
+		else if (header.packetType == Packet::PacketType::SENDINFO)
+		{
+			int id2 = atoi(content.substr(0, 3).c_str());
+			std::string content2 = content.substr(3);
+			std::cout << "send content to" << id2 << ": " << content2 << std::endl;
+			Packet::Header header;
+			header.packetType = Packet::PacketType::INFO;
+			header.length = content2.length();
+			server->emitList.PushBack(id2, header, content2);
+
+			std::string ans = "Message send successfully!";
+			std::cout << "send content to" << id << ": " << ans << std::endl;
+			Packet::Header header2;
+			header2.packetType = Packet::PacketType::INFO;
+			header2.length = ans.length();
+			server->emitList.PushBack(id, header2, ans);
 		}
 	}
 }
@@ -142,10 +191,10 @@ void Network::OutputLoop::operator()(Server* server)
 				}
 				else
 				{
-					std::cout << "send out to " << target;
+					std::cout << "send out to " << target << std::endl;
 				}
 
-				ret = send(*socekt, emitType.contain.data() ,emitType.header.length, 0);
+				ret = send(*socekt, emitType.contain.data(), emitType.header.length, 0);
 				if (ret == SOCKET_ERROR)
 				{
 					printf("send() failed!\n");
@@ -153,7 +202,7 @@ void Network::OutputLoop::operator()(Server* server)
 				}
 				else
 				{
-					std::cout << "send out to " << target;
+					std::cout << "send out to " << target << std::endl;
 				}
 
 				iter->second.pop();

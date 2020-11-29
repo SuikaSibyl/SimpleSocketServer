@@ -9,6 +9,7 @@
 #include <queue>
 #include <mutex>
 #include <memory>
+#include <atomic>
 
 template<class T>
 class thread_safe_queue
@@ -100,7 +101,7 @@ public:
 
 class ThreadPool
 {
-	std::atomic_bool done;
+	std::atomic<bool> done;
 	thread_safe_queue<std::function<void()>> work_queue;
 	std::vector<std::thread> threads;
 	join_threads jointer;
