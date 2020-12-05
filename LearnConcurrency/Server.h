@@ -5,7 +5,7 @@
 #include "EmitList.h"
 
 #pragma comment(lib,"ws2_32.lib")  
-#define SERVER_PORT	6666 //ÕìÌı¶Ë¿Ú
+#define SERVER_PORT	1046 //ÕìÌı¶Ë¿Ú
 #define MAX_CLIENT 10
 
 namespace Network

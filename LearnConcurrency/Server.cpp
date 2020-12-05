@@ -107,12 +107,37 @@ void Network::ReceiveResult::operator()(std::shared_ptr<SOCKET> sServer, int id,
 {
 	while (true)
 	{
+		Packet::RecvState recvState;
 		Packet::Header header;
-		Packet::Packet::ReceiveByLength(sServer, (char*)&header, sizeof(header));
+		recvState = Packet::Packet::ReceiveByLength(sServer, (char*)&header, sizeof(header));
+		if (recvState != Packet::RecvState::SUCCESS)
+		{
+			//client->connected = false;
+			if (recvState == Packet::RecvState::UNEXPECTED) std::cout << "socket unexptected exit";
+			if (recvState == Packet::RecvState::CLOSE) std::cout << "socket closed";
+
+			// Clear the queue
+			while (!server->emitList.EmitMap[id].empty()) server->emitList.EmitMap[id].pop();
+			server->clientList.DelConn(id);
+
+			break;
+		}
 		std::cout << "Header Type: " << header.packetType << " | Header Length: " << header.length << std::endl;
 
 		char* con = new char[header.length];
-		Packet::Packet::ReceiveByLength(sServer, con, header.length);
+		recvState = Packet::Packet::ReceiveByLength(sServer, con, header.length);
+		if (recvState != Packet::RecvState::SUCCESS)
+		{
+			//client->connected = false;
+			if (recvState == Packet::RecvState::UNEXPECTED) std::cout << "socket unexptected exit";
+			if (recvState == Packet::RecvState::CLOSE) std::cout << "socket closed";
+
+			// Clear the queue
+			while (!server->emitList.EmitMap[id].empty()) server->emitList.EmitMap[id].pop();
+			server->clientList.DelConn(id);
+
+			break;
+		}
 		std::string content = con;
 		std::cout << "receive content: " << content << std::endl;
 
@@ -124,7 +149,7 @@ void Network::ReceiveResult::operator()(std::shared_ptr<SOCKET> sServer, int id,
 			std::cout << "send content: " << sendline << std::endl;
 
 			Packet::Header header;
-			header.packetType = Packet::PacketType::INFO;
+			header.packetType = Packet::PacketType::RES4TIME;
 			header.length = sendline.length();
 			server->emitList.PushBack(id, header, sendline);
 		}
@@ -137,14 +162,14 @@ void Network::ReceiveResult::operator()(std::shared_ptr<SOCKET> sServer, int id,
 			std::cout << "send content to" << id << ": " << host_name << std::endl;
 
 			Packet::Header header;
-			header.packetType = Packet::PacketType::INFO;
+			header.packetType = Packet::PacketType::RES4NAME;
 			header.length = host_name.length();
 			server->emitList.PushBack(id, header, host_name);
 		}
 		else if (header.packetType == Packet::PacketType::REQ4LIST)
 		{
 			Packet::Header header;
-			header.packetType = Packet::PacketType::INFO;
+			header.packetType = Packet::PacketType::RES4LIST;
 			std::string data = server->clientList.Encapsule();
 			std::cout << "send content to" << id << ": " << data << std::endl;
 			header.length = data.length();
@@ -167,6 +192,19 @@ void Network::ReceiveResult::operator()(std::shared_ptr<SOCKET> sServer, int id,
 			header2.length = ans.length();
 			server->emitList.PushBack(id, header2, ans);
 		}
+		
+		if (header.packetType == Packet::PacketType::DISCONNECT)
+		{
+			server->clientList.DelConn(id);
+
+			// Clear the queue
+			while (!server->emitList.EmitMap[id].empty()) server->emitList.EmitMap[id].pop();
+			server->clientList.DelConn(id);
+
+			std::cout << "Client " + std::to_string(id) + " disconnect!";
+
+			break;
+		}
 	}
 }
 
@@ -175,9 +213,10 @@ void Network::OutputLoop::operator()(Server* server)
 {
 	while (true)
 	{
-		for (auto iter = server->emitList.EmitMap.begin(); iter != server->emitList.EmitMap.end(); iter++)
+		for (auto iter = server->emitList.EmitMap.begin(); iter != server->emitList.EmitMap.end();)
 		{
 			int target = iter->first;
+			bool occurDisconnect = false;
 			std::shared_ptr<SOCKET> socekt = server->clientList.clientList[target].socket;
 			while (iter->second.size() != 0)
 			{
@@ -186,7 +225,16 @@ void Network::OutputLoop::operator()(Server* server)
 				int ret = send(*socekt, (char*)&emitType.header, sizeof(emitType.header), 0);
 				if (ret == SOCKET_ERROR)
 				{
-					printf("send() failed!\n");
+					std::cout << "send() failed! As client id:";
+					std::cout << target;
+					std::cout << " disconnected unexceptedly!\n";
+					// Clear the queue
+					while (!iter->second.empty()) iter->second.pop();
+					iter = server->emitList.EmitMap.erase(iter);
+					occurDisconnect = true;
+					server->clientList.DelConn(target);
+					if (iter == server->emitList.EmitMap.end())
+						break;
 					continue;
 				}
 				else
@@ -197,16 +245,28 @@ void Network::OutputLoop::operator()(Server* server)
 				ret = send(*socekt, emitType.contain.data(), emitType.header.length, 0);
 				if (ret == SOCKET_ERROR)
 				{
-					printf("send() failed!\n");
+					std::cout << "send() failed! As client id:";
+					std::cout << target;
+					std::cout << " disconnected unexceptedly!\n";
+					// Clear the queue
+					while (!iter->second.empty()) iter->second.pop();
+					iter = server->emitList.EmitMap.erase(iter);
+					occurDisconnect = true;
+					server->clientList.DelConn(target);
+
+					if (iter == server->emitList.EmitMap.end())
+						break;
 					continue;
 				}
 				else
 				{
 					std::cout << "send out to " << target << std::endl;
 				}
-
-				iter->second.pop();
+				if (occurDisconnect == false)
+					iter->second.pop();
 			}
+			if (occurDisconnect == false)
+				iter++;
 		}
 	}
 }

@@ -2,6 +2,13 @@
 
 namespace Packet
 {
+	enum RecvState
+	{
+		SUCCESS,
+		UNEXPECTED,
+		CLOSE
+	};
+
 	enum PacketType
 	{
 		NOTAPACKET,
@@ -11,7 +18,10 @@ namespace Packet
 		REQ4LIST,
 		SENDINFO,
 		DISCONNECT,
-		//普通消息
+		//响应类型
+		RES4NAME,
+		RES4TIME,
+		RES4LIST,
 		INFO
 	};
 
@@ -26,7 +36,7 @@ namespace Packet
 	class Packet
 	{
 	public:
-		static void ReceiveByLength(std::shared_ptr<SOCKET> sServer, char* ptr, int length)
+		static RecvState ReceiveByLength(std::shared_ptr<SOCKET> sServer, char* ptr, int length)
 		{
 			int nLeft = length;
 			while (nLeft > 0)
@@ -36,17 +46,19 @@ namespace Packet
 				if (ret == SOCKET_ERROR)
 				{
 					printf("recv() failed!\n");
-					break;
+					return RecvState::UNEXPECTED;
 				}
 
-				if (ret == 0) //客户端已经关闭连接
+				//客户端已经关闭连接
+				if (ret == 0)
 				{
 					printf("client has closed the connection!\n");
-					break;
+					return RecvState::CLOSE;
 				}
 				nLeft -= ret;
 				ptr += ret;
 			}
+			return RecvState::SUCCESS;
 		}
 	};
 }

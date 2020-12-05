@@ -36,9 +36,12 @@ public:
 		std::string ret;
 		for (auto iter = clientList.begin(); iter != clientList.end(); iter++)
 		{
-			ret += std::to_string(iter->second.id) + "/";
-			ret += iter->second.address + "/";
-			ret += std::to_string(iter->second.port) + "#";
+			if (iter->second.id != -1)
+			{
+				ret += std::to_string(iter->second.id) + "/";
+				ret += iter->second.address + "/";
+				ret += std::to_string(iter->second.port) + "#";
+			}
 		}
 		return ret;
 	}
@@ -61,12 +64,14 @@ public:
 			if (iter->second.id == id)
 			{
 				iter = clientList.erase(iter);
+				std::cout << "Disconnect happened. Client num now: " << clientList.size() << std::endl;
 			}
 			else
 			{
 				iter++;
 			}
 		}
+		return true;
 	}
 };
 
